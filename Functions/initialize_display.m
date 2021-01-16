@@ -50,7 +50,7 @@ handles.ContourLine = line(handles.contourWindow,[1,5],[1,5],'LineStyle','--','C
 % Focus spectogram
 handles.spect = imagesc([],[],handles.background,'Parent', handles.focusWindow);
 cb=colorbar(handles.focusWindow);
-cb.Label.String = 'Amplitude';
+cb.Label.String = handles.data.settings.spect.type;
 cb.Color = [1 1 1];
 cb.FontSize = 12;
 ylabel(handles.focusWindow,'Frequency (kHz)','Color','w');
@@ -61,7 +61,7 @@ set(handles.focusWindow,'Color',[.1 .1 .1]);
 % Epoch spectogram
 handles.epochSpect = imagesc([],[],handles.background,'Parent', handles.spectogramWindow);
 cb=colorbar(handles.spectogramWindow);
-cb.Label.String = 'Amplitude';
+cb.Label.String = handles.data.settings.spect.type;
 cb.Color = [1 1 1];
 cb.FontSize = 12;
 ylabel(handles.spectogramWindow,'Frequency (kHz)','Color','w');
@@ -101,9 +101,4 @@ handles = guidata(hObject);
 
 %% Find the color scale limits
 handles.data.clim = prctile(handles.data.page_spect.s_display(20:10:end-20, 1:20:end),[10,90], 'all')';
-clim = handles.data.clim + range(handles.data.clim) * [0, 1] * handles.data.settings.spectrogramContrast;
-set(handles.spectogramWindow,'Clim',clim)
-set(handles.focusWindow,'Clim',clim)
-% guidata(hObject, handles);
-
-
+change_spectogram_contrast_Callback(hObject,[],handles);

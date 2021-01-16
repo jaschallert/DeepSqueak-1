@@ -1,4 +1,4 @@
-function x = spatialPattern(DIM,BETA),
+function x = spatialPattern(DIM,BETA)
 % function x = spatialPattern(DIM, BETA),
 %
 % This function generates 1/f spatial noise, with a normal error 

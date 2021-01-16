@@ -21,5 +21,8 @@ handles.data.audiodata = [];
 % Position of the focus window to the first call in the file
 handles.data.focusCenter = handles.data.calls.Box(1,1) + handles.data.calls.Box(1,3)/2;
 
-initialize_display(hObject, eventdata, handles);
+% For some unknown reason, if "h" is closed after running
+% "initialize_display", then holding down an arror key will be a little
+% slower. See update_fig.m for details
 close(h);
+initialize_display(hObject, eventdata, handles);

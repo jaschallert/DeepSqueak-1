@@ -36,6 +36,9 @@ else
     
     % Remove any old variables that we don't use anymore
     Calls = removevars(Calls, intersect(Calls.Properties.VariableNames, {'RelBox', 'Rate', 'Audio'}));
+    
+    % Sort calls by time
+    Calls = sortrows(Calls, 'Box');
 end
 
 
@@ -69,6 +72,7 @@ if nargout > 1
                 }, sprintf('Importing from standard DeepSquek. Select audio matching the detection file %s',detection_name), detection_name);
             audio_file = fullfile(path, file);
             if isequal(file,0) % If user pressed cancel
+                errordlg('DeepSqueak 3.0+ requires the audio file accompanying the detection file.')
                 return
             end
         end

@@ -123,31 +123,29 @@ set ( hFig, 'Color', [.1 .1 .1] );
 handles.output = hObject;
 cd(handles.data.squeakfolder);
 
-% Display version
-try
+%% Display version
+try % Read the current changelog and find the version (## number)
     fid = fopen(fullfile(handles.data.squeakfolder,'CHANGELOG.md'));
-    txt = fscanf(fid,'%c');
-    txt = strsplit(txt);
-    changes = find(contains(txt,'##'),1); % Get the values after the bold heading
-    handles.DSVersion = txt{changes+1};
-    disp(['DeepSqueak version ' handles.DSVersion]);
+    changelog = fscanf(fid,'%c');
     fclose(fid);
+    tokens = regexp(changelog, '## ([.\d])+', 'tokens');
+    handles.DSVersion =  tokens{1}{:};
 catch
-    handles.DSVersion = '?';
+    handles.DSVersion = '? -- can''t read CHANGELOG.md. Make sure you have the latest version!';
 end
-% Check if a new version is avaliable by comparing changelog to whats online
-try
-    WebChangelogTxt= webread('https://raw.githubusercontent.com/DrCoffey/DeepSqueak/master/CHANGELOG.md');
-    WebChangelog = strsplit(WebChangelogTxt);
-    changes = find(contains(WebChangelog,'##')); % Get the values after the bold heading
-    WebVersion = WebChangelog{changes+1};
-    if ~strcmp(WebVersion,handles.DSVersion)
-        disp ' '
-        disp 'A new version of DeepSqueak is avaliable.'
-        disp('<a href="https://github.com/DrCoffey/DeepSqueak">Download link</a>')
-        changes = strfind(WebChangelogTxt,'##');
-        disp(WebChangelogTxt(changes(1)+3:changes(2)-1))
+fprintf(1,'%s %s\n', 'DeepSqueak version', handles.DSVersion);
+try % Check if a new version is avaliable by comparing changelog to whats online
+    WebChangelog = webread('https://raw.githubusercontent.com/DrCoffey/DeepSqueak/master/CHANGELOG.md');
+    [changes, tokens] = regexp(WebChangelog, '## ([.\d])+', 'start', 'tokens');
+    WebVersion = tokens{1}{:};
+    if ~strcmp(WebVersion, handles.DSVersion)
+        fprintf(1,'%s\n%s\n\n%s\n',...
+            'A new version of DeepSqueak is avaliable.',...
+            '<a href="https://github.com/DrCoffey/DeepSqueak">Download it here!</a>',...
+            WebChangelog(1:changes(2)-1))
     end
+catch
+    fprintf(1,'Can''t check for a updates online right now\n');
 end
 
 % set(handles.spectogramWindow,'Visible', 'off');
@@ -891,19 +889,9 @@ function popupmenuColorMap_ButtonDownFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-% --- If Enable == 'on', executes on mouse press in 5 pixel border.
-% --- Otherwise, executes on mouse press in 5 pixel border or over loadcalls.
-function loadcalls_ButtonDownFcn(hObject, eventdata, handles)
-% hObject    handle to loadcalls (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
 % --------------------------------------------------------------------
 function contributorToolsMenu_Callback(hObject, eventdata, handles)
-% hObject    handle to contributorToolsMenu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+web('https://gitter.im/DeepSqueak_Community/General')
 
 
 % --------------------------------------------------------------------
@@ -919,23 +907,3 @@ function invert_cmap_Callback(hObject, eventdata, handles)
 colormap(handles.spectogramWindow, flipud(colormap(handles.spectogramWindow)))
 colormap(handles.focusWindow, flipud(colormap(handles.focusWindow)))
 
-
-% --- If Enable == 'on', executes on mouse press in 5 pixel border.
-% --- Otherwise, executes on mouse press in 5 pixel border or over contrast_minus.
-function contrast_minus_Callback(hObject, eventdata, handles)
-handles.data.settings.spectrogramContrast = handles.data.settings.spectrogramContrast * 1.25;
-clim = handles.data.clim + range(handles.data.clim) * [0, 1] * handles.data.settings.spectrogramContrast;
-set(handles.spectogramWindow,'Clim',clim)
-set(handles.focusWindow,'Clim',clim)
-handles.data.saveSettings();
-guidata(hObject, handles);
-
-
-% --- Executes on button press in contrast_plus.
-function contrast_plus_Callback(hObject, eventdata, handles)
-handles.data.settings.spectrogramContrast = handles.data.settings.spectrogramContrast * .8;
-clim = handles.data.clim + range(handles.data.clim) * [0, 1] * handles.data.settings.spectrogramContrast;
-set(handles.spectogramWindow,'Clim',clim)
-set(handles.focusWindow,'Clim',clim)
-handles.data.saveSettings();
-guidata(hObject.Parent, handles);

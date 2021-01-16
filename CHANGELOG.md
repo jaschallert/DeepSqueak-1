@@ -1,7 +1,8 @@
 # Changelog
-## 2.7.0 2020-12-29
+## 3.0 2020-12-29
 
-Full audio file navigation
+
+Major interface update - Full audio file navigation!
 
 Integration of DeepSqueak Screener
 
@@ -18,22 +19,24 @@ New Collaborator: Robert Ciszek from University of Eastern Finland!
 
 
 ## Additions
-- Free backward and forward movement along the record.
-- Additional spectogram with a larger time window for call contextualization.
-- Single Click on lower spectrogram to jump to that position.
-- Single Click a location on the scroll bar in map mode = upper spectrogram jumps to that location in the file.
-- Up Arrow = next timepoint in spectrogram, Down Arrow = previous timepoint in spectrogram.
-- Shift + Click on detection to reject it.
+- Free backward and forward movement along the entire recording.
+- Additional "page" spectogram with a larger time window for call contextualization.
+- Click on the lower page spectrogram to jump to that position in the upper "focus" view.
+- Click a location on the map bar to jump to that location in the file.
+- Up and down arrow keys to slide the focus window forward or backward
+- Right click on a detection to remove it.
+- Control-click or double click on a detection to change it's label
 - Select, move, and modify ROIs of detected calls:
 
 ![screenshot](https://i.postimg.cc/8C08C48V/EXAMPLE-02.png)
 
-- Possibility to mark calls not detected by FRCNN.
-- Black & white color map.
+- Possibility to manually add calls not detected by Faster-RCNN.
 - Constant time and spectrogram scales.
-- Possibility to modify time and spectrogram scales, Focus (upper spectrogram), Epoch (lower spectrogram).
+- Display either spectral amplitude of power spectral density
+- Possibility to modify time and spectrogram scales, Focus (upper spectrogram), Page (lower spectrogram).
 - Sonic Visualizer export/import.
-- Open Original DeepSqueak detections files.
+- Fully compatible with older DeepSqueak detections files.
+- Invertible colormaps.
 - GUI tweaks.
 
 
@@ -41,7 +44,6 @@ New Collaborator: Robert Ciszek from University of Eastern Finland!
 **Original DeepSqueak**: Coffey, K., Marx, R., & Neumaier, J.<br>
 **Screener**: Lara-Valderrábano, L. and Ciszek, R.
 
-# Changelog
 ## 2.6.2 2020-08-03
 
 Modifications to increase contributor and community engagement
@@ -53,7 +55,6 @@ Modifications to increase contributor and community engagement
 
 Minor bug fixes 
 
-# Changelog
 ## 2.6.1 2019-07-16
 
 Fixed bug when importing call classifications from Raven .txt files.

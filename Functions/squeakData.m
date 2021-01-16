@@ -46,7 +46,7 @@ classdef squeakData < handle
             obj.defaultSettings.pageSize = 3; % Size of page view in seconds
             obj.defaultSettings.spectogram_ticks = 11;
             obj.defaultSettings.focus_window_size = 0.5;
-            obj.defaultSettings.spectrogramContrast = 3;
+            obj.defaultSettings.spectrogramContrast = [-.6, 3];
             % Spectrogram fft settings in seconds
             obj.defaultSettings.spect.windowsize = 0.0032;
             obj.defaultSettings.spect.noverlap = 0.0016;

@@ -189,9 +189,10 @@ hfig.Visible = 'on';
             % Update the color limits because changing from amplitude to
             % power would mess with them
             handles.data.clim = prctile(handles.data.page_spect.s_display(20:10:end-20, 1:20:end),[10,90], 'all')';
-            clim = handles.data.clim + range(handles.data.clim) * [0, 1] * handles.data.settings.spectrogramContrast;
-            set(handles.spectogramWindow,'Clim',clim)
-            set(handles.focusWindow,'Clim',clim)
+            change_spectogram_contrast_Callback(hObject,[],handles);
+
+            handles.focusWindow.Colorbar.Label.String = handles.data.settings.spect.type;
+            handles.spectogramWindow.Colorbar.Label.String = handles.data.settings.spect.type;
         end
         guidata(hObject, handles);
         
