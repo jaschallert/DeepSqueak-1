@@ -1,490 +1,421 @@
-function [NewclusterName, NewRejected, NewFinished, NewClustAssign] = clusteringGUI(clustAssign1,ClusteringData1,JustLooking)
-% I know I shouldn't use global variables, but they are so convenient, and I was in a hurry.
-
-clearvars -global
-global k clustAssign clusters rejected ClusteringData minfreq maxfreq d ha ColorData txtbox totalCount count clusterName handle_image page pagenumber finished thumbnail_size call_id_text call_file_text
-clustAssign = clustAssign1;
-%Image, Lower freq, delta time, Time points, Freq points, File path, Call ID in file, power, RelBox
-ClusteringData = ClusteringData1;
-thumbnail_size = [60*2 100*2];
-rejected = zeros(1,length(clustAssign));
-
-minfreq = floor(min(ClusteringData.MinFreq))-1;
-maxfreq = ceil(max(ClusteringData.MinFreq + ClusteringData.Bandwidth));
-mfreq = cellfun(@mean,ClusteringData.xFreq);
-ColorData = jet(maxfreq - minfreq); % Color by mean frequency
-if iscategorical(clustAssign)
-    clusterName =unique(clustAssign);
-    clusters = unique(clustAssign);
-else
-    clusterName = categorical(unique(clustAssign(~isnan(clustAssign))));
-    clusters = (unique(clustAssign(~isnan(clustAssign))));
-end
-       
-d = dialog('Visible','off','Position',[360,500,600,600],'WindowStyle','Normal','resize', 'on','WindowState','maximized' );
-d.CloseRequestFcn = @windowclosed;
-set(d,'color',[.1, .1, .1]);
-k = 1;
-page = 1;
-
-movegui(d,'center');
-set(d,'WindowButtonMotionFcn', @mouse_over_Callback);
-
-txt = uicontrol('Parent',d,...
-'BackgroundColor',[.1 .1 .1],...
-'ForegroundColor','w',...
-'Style','text',...
-'Position',[120 565 80 30],...
-'String','Name:');
-
-txtbox = uicontrol('Parent',d,...
-    'BackgroundColor',[.149 .251 .251],...
-    'ForegroundColor','w',...
-    'Style','edit',...
-    'String','',...
-    'Position',[120 550 80 30],...
-    'Callback',@txtbox_Callback);
-
-
-totalCount = uicontrol('Parent',d,...
-    'BackgroundColor',[.1 .1 .1],...
-    'ForegroundColor','w',...
-    'Style','text',...
-    'String','',...
-    'Position',[330 542.5 200 30],...
-    'HorizontalAlignment','left');
-
-
-back = uicontrol('Parent',d,...
-    'BackgroundColor',[.149 .251 .251],...
-    'ForegroundColor','w',...
-    'Position',[20 550 80 30],...
-    'String','Back',...
-    'Callback',@back_Callback);
-
-next = uicontrol('Parent',d,...
-    'BackgroundColor',[.149 .251 .251],...
-    'ForegroundColor','w',...
-    'Position',[220 550 80 30],...
-    'String','Next',...
-    'Callback',@next_Callback);
-
-apply = uicontrol('Parent',d,...
-    'BackgroundColor',[.149 .251 .251],...
-    'ForegroundColor','w',...
-    'Position',[440 550 60 30],...
-    'String','Save',...
-    'Callback',@apply_Callback);
-
-if nargin == 2
-    redo = uicontrol('Parent',d,...
-        'BackgroundColor',[.149 .251 .251],...
-        'ForegroundColor','w',...
-        'Position',[510 550 60 30],...
-        'String','Redo',...
-        'Callback',@redo_Callback);
-else
-    redo = uicontrol('Parent',d,...
-        'BackgroundColor',[.149 .251 .251],...
-        'ForegroundColor','w',...
-        'Position',[510 550 60 30],...
-        'String','Cancel',...
-        'Callback',@redo_Callback);
-end
-%% Paging
-nextpage = uicontrol('Parent',d,...
-    'BackgroundColor',[.149 .251 .251],...
-    'ForegroundColor','w',...
-    'Position',[220 517 80 30],...
-    'String','Next Page',...
-    'Callback',@nextpage_Callback);
-
-backpage = uicontrol('Parent',d,...
-    'BackgroundColor',[.149 .251 .251],...
-    'ForegroundColor','w',...
-    'Position',[20 517 80 30],...
-    'String','Previous Page',...
-    'Callback',@backpage_Callback);
-
-pagenumber = uicontrol('Parent',d,...
-    'BackgroundColor',[.1 .1 .1],...
-    'ForegroundColor','w',...
-    'Style','text',...
-    'String','',...
-    'Position',[118 509 80 30],...
-    'HorizontalAlignment','center');
-
-
-call_id_text = uicontrol('Parent',d,...
-    'BackgroundColor',[.1 .1 .1],...
-    'ForegroundColor','w',...
-    'Style','text',...
-    'String','',...
-    'FontSize',12,...
-    'Position',[200 484 200 12],...
-    'HorizontalAlignment','center');
-
-call_file_text = uicontrol('Parent',d,...
-    'BackgroundColor',[.1 .1 .1],...
-    'ForegroundColor','w',...
-    'Style','text',...
-    'String','',...
-    'FontSize',12,...
-    'Position',[200 472 200 12],...
-    'HorizontalAlignment','center');
-
-
-
-render_GUI(d)
-
-% Wait for d to close before running to completion
-set( findall(d, '-property', 'Units' ), 'Units', 'Normalized');
-d.Visible = 'on';
-uiwait(d);
-NewclusterName = clusterName;
-NewRejected = rejected;
-NewFinished = finished;
-NewClustAssign = clustAssign;
-clearvars -global
-
-
-
-end
-
-function mouse_over_Callback(hObject, eventdata, handles)
-    global ha d call_file_text call_id_text ClusteringData page clustIndex k clustAssign clusters
-
-    call_file = '';
-    call_id = '';
+classdef clusteringGUI < handle
     
-    clustIndex = find(clustAssign==clusters(k));
-    
-    if sum(clustAssign==clusters(k)) == 0
-       return; 
+    properties
+        currentCluster = 1
+        page = 1
+        thumbnail_size = [200 200]
+        clustAssign
+        clusters
+        rejected
+        ClusteringData
+        minfreq
+        maxfreq
+        fig
+        image_axes = gobjects()
+        handle_image = gobjects()
+        ColorData
+        totalCount
+        count
+        clusterName
+        pagenumber
+        finished
+        call_id_text      
+        txtbox
     end
-
-    for i=1:length(ha)
-      
-        if i <= length(clustIndex) - (page - 1)*length(ha)
+    
+    methods
+        function [obj, NewclusterName, NewRejected, NewFinished, NewClustAssign] = clusteringGUI(clustAssign, ClusteringData, JustLooking)
             
-            callID = i + (page - 1)*length(ha);
-            call_index = clustIndex(callID);
-            cursor_point = get(d,'currentpoint');
-
-            axis_position = get(ha(i),'Position');
-
-            if cursor_point(1)>axis_position(1) && cursor_point(2)>axis_position(2) && cursor_point(1) < (axis_position(1)+axis_position(3)) && cursor_point(2)<(axis_position(2)+axis_position(4))
-                [~,name,~] = fileparts(ClusteringData.Filename(call_index));
-                call_file = name ;
-                call_id = num2str(ClusteringData.callID(call_index));
+            
+            
+            obj.clustAssign = clustAssign;
+            %Image, Lower freq, delta time, Time points, Freq points, File path, Call ID in file, power, RelBox
+            obj.ClusteringData = ClusteringData;
+            obj.rejected = zeros(1,length(obj.clustAssign));
+            
+            obj.minfreq = prctile(ClusteringData.MinFreq, 5);
+            obj.maxfreq = prctile(ClusteringData.MinFreq + ClusteringData.Bandwidth, 95);
+            obj.ColorData = jet(256); % Color by mean frequency
+            % obj.ColorData = HSLuv_to_RGB(256, 'H',  [270 -25], 'S', 100, 'L', 75); % Make a color map for each category
+            obj.ColorData = reshape(obj.ColorData,size(obj.ColorData,1),1,size(obj.ColorData,2));
+            
+            if iscategorical(obj.clustAssign)
+                obj.clusterName =unique(obj.clustAssign);
+                obj.clusters = unique(obj.clustAssign);
+            else
+                obj.clusterName = categorical(unique(obj.clustAssign(~isnan(obj.clustAssign))));
+                obj.clusters = (unique(obj.clustAssign(~isnan(obj.clustAssign))));
             end
-        end     
-    end
-        
-    set(call_file_text, 'String',call_file);
-    set(call_id_text, 'String',call_id);
-    
-end
-
-function txtbox_Callback(hObject, eventdata, handles)
-    global k clusterName
-    clusterName(k) = get(hObject,'String');
-end
-
-function redo_Callback(hObject, eventdata, handles)
-global finished
-finished = 0;
-delete(gcf)
-end
-
-function apply_Callback(hObject, eventdata, handles)
-global finished
-finished = 1;
-delete(gcf)
-end
-
-
-function render_GUI(d)
-global k clustAssign clusters rejected ClusteringData minfreq maxfreq d ha ColorData txtbox totalCount count clusterName handle_image page pagenumber finished thumbnail_size
-  
-    % Number of calls in each cluster
-    for cl = 1:length(clusterName)
-        count(cl) = sum(clustAssign==clusters(cl));
-    end
-
-    clustIndex = find(clustAssign==clusters(k));
-      
-    set(d,'name',['Cluster ' num2str(k) ' of ' num2str(length(count))]);
-    set(txtbox,'String',string(clusterName(k)));
-    set(totalCount,'String',['total count:' char(string(count(k)))]); 
-    set(pagenumber,'String',['Page ' char(string(page)) ' of ' char(string(ceil(count(k) / length(ha) )))]);
-
-    
-    %% Colormap
-    xdata = minfreq:.3:maxfreq;
-    color = jet(length(xdata));
-    caxis = axes(d,'Units','Normalized','Position',[.88 .05 .04 .8]);
-    cm(:,:,1) = color(:,1);
-    cm(:,:,2) = color(:,2);
-    cm(:,:,3) = color(:,3);
-    image(1,xdata,cm,'parent',caxis)
-    caxis.YDir = 'normal';
-    set(caxis,'YColor','w','box','off','YAxisLocation','right');
-    ylabel(caxis, 'Frequency (kHz)')  
-
-    % Number of calls in each cluster
-    for cl = 1:length(clusterName)
-        count(cl) = sum(clustAssign==clusters(cl));
-    end
-
-    %% Make the axes
-    ypos = .05:.15:.70;
-    xpos = .02:.22:.78;
-    xpos = fliplr(xpos);
-    c = 0;
-    for i = 1:length(ypos)
-        for j = 1:length(xpos)
-            c = c+1;
-            pos(c,:) = [ypos(i), xpos(j)];
+            
+            obj.fig = dialog('Visible','off','Position',[360,500,600,600],'WindowStyle','Normal','resize', 'on','WindowState','maximized' );
+            obj.fig.CloseRequestFcn = @(src,event) finished_Callback(obj, src, event);
+            set(obj.fig,'color',[.1, .1, .1]);
+            
+            movegui(obj.fig,'center');
+            %             set(obj.fig,'WindowButtonMotionFcn', @(hObject, eventdata) mouse_over_Callback(obj, hObject, eventdata));
+            
+            txt = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.1 .1 .1],...
+                'ForegroundColor','w',...
+                'Style','text',...
+                'Position',[120 565 80 30],...
+                'String','Name:');
+            
+            obj.txtbox = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.149 .251 .251],...
+                'ForegroundColor','w',...
+                'Style','edit',...
+                'String','',...
+                'Position',[120 550 80 30],...
+                'Callback',@(src,event) txtbox_Callback(obj,src,event));
+            
+            
+            obj.totalCount = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.1 .1 .1],...
+                'ForegroundColor','w',...
+                'Style','text',...
+                'String','',...
+                'Position',[330 542.5 200 30],...
+                'HorizontalAlignment','left');
+            
+            
+            back = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.149 .251 .251],...
+                'ForegroundColor','w',...
+                'Position',[20 550 80 30],...
+                'String','Back',...
+                'Callback',@(src,event) back_Callback(obj, src, event));
+            
+            next = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.149 .251 .251],...
+                'ForegroundColor','w',...
+                'Position',[220 550 80 30],...
+                'String','Next',...
+                'Callback',@(src,event) next_Callback(obj, src, event));
+            
+            apply = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.149 .251 .251],...
+                'ForegroundColor','w',...
+                'Position',[440 550 60 30],...
+                'String','Save',...
+                'Callback',@(src,event)  finished_Callback(obj, src, event));
+            
+            if nargin == 2
+                redo = uicontrol('Parent',obj.fig,...
+                    'BackgroundColor',[.149 .251 .251],...
+                    'ForegroundColor','w',...
+                    'Position',[510 550 60 30],...
+                    'String','Redo',...
+                    'Callback',@(src,event) finished_Callback(obj, src, event));
+            else
+                redo = uicontrol('Parent',obj.fig,...
+                    'BackgroundColor',[.149 .251 .251],...
+                    'ForegroundColor','w',...
+                    'Position',[510 550 60 30],...
+                    'String','Cancel',...
+                    'Callback',@(src,event) finished_Callback(obj, src, event));
+            end
+            %% Paging
+            nextpage = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.149 .251 .251],...
+                'ForegroundColor','w',...
+                'Position',[220 517 80 30],...
+                'String','Next Page',...
+                'Callback',@(src,event) nextpage_Callback(obj, src, event));
+            
+            backpage = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.149 .251 .251],...
+                'ForegroundColor','w',...
+                'Position',[20 517 80 30],...
+                'String','Previous Page',...
+                'Callback',@(src,event, h) backpage_Callback(obj, src, event));
+            
+            obj.pagenumber = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.1 .1 .1],...
+                'ForegroundColor','w',...
+                'Style','text',...
+                'String','',...
+                'Position',[118 509 80 30],...
+                'HorizontalAlignment','center');
+            
+            
+            obj.call_id_text = uicontrol('Parent',obj.fig,...
+                'BackgroundColor',[.1 .1 .1],...
+                'ForegroundColor','w',...
+                'Style','text',...
+                'String','',...
+                'FontSize',12,...
+                'Position',[100 470 400 30],...
+                'HorizontalAlignment','center');
+            
+            
+            obj.render_GUI();
+            
+            % Wait for d to close before running to completion
+            set( findall(obj.fig, '-property', 'Units' ), 'Units', 'Normalized');
+            obj.fig.Visible = 'on';
+            
+            % Enable pointer management for the figure for mouse hover over
+            iptPointerManager(obj.fig, 'enable');
+                    
+            uiwait(obj.fig);
+            NewclusterName = obj.clusterName;
+            NewRejected = obj.rejected;
+            NewFinished = obj.finished;
+            NewClustAssign = obj.clustAssign;
+            
         end
-    end
-    pos = flipud(pos);
-    
-    for i=1:i*j
-        if i <= length(clustIndex) - (page - 1)*length(ha)
-            callID = i + (page - 1)*length(ha);
-            [colorIM, rel_x, rel_y] = create_thumbnail(ClusteringData,clustIndex,thumbnail_size,callID,minfreq,ColorData);     
-            ha(i) = axes(d,'Units','Normalized','Position',[pos(i,2),pos(i,1),.18,.12]);
-            handle_image(i) = image(colorIM + .5 .* rejected(clustIndex(i)),'parent',ha(i));
-            set(handle_image(i), 'ButtonDownFcn',{@clicked,clustIndex(i),i,i});
+        
+        function render_GUI(obj)
+            
+            %% Colormap
+            xdata = obj.minfreq:obj.maxfreq;
+            caxis = axes(obj.fig,'Units','Normalized','Position',[.88 .05 .04 .8]);
+            image(1,xdata,obj.ColorData,'parent',caxis)
+            caxis.YDir = 'normal';
+            set(caxis,'YColor','w','box','off','YAxisLocation','right');
+            ylabel(caxis, 'Frequency (kHz)')
+            
+            %% Make the axes
+            axes_spacing = .85; % Relative width of each image
+            y_range = [.05, .75]; % [Start, End] of the grid
+            x_range = [.02, .85];
+            x_grids = 5; % Number of x grids
+            y_grids = 4; % Number of y grids
 
-            config_axis(ha(i),clustIndex(callID), rel_x, rel_y);
-            add_cluster_context_menu(handle_image(i),clustIndex(callID));
-        else   
-            im = zeros(thumbnail_size(1),thumbnail_size(2));
+            ypos = linspace(y_range(1), y_range(2) - axes_spacing * range(y_range) / y_grids, y_grids );
+            xpos = linspace(x_range(1), x_range(2) - axes_spacing * range(x_range) / x_grids, x_grids );
+            xpos = fliplr(xpos);
+
+            pos = [];
+            for i = 1:length(ypos)
+                for j = 1:length(xpos)
+                    pos(end+1,:) = [xpos(j), ypos(i), (xpos(1)-xpos(2)) * axes_spacing, (ypos(2)-ypos(1)) * axes_spacing];
+                end
+            end
+            pos = flipud(pos);
+            for i = 1 : length(ypos) * length(xpos)
+                    im = zeros([obj.thumbnail_size, 3]);
+                    obj.image_axes(i) = axes(obj.fig,'Units','Normalized','Position',pos(i,:));
+                    obj.handle_image(i) = image(im,'parent',obj.image_axes(i));
+                    set(obj.image_axes(i),'Visible','off')
+                    set(get(obj.image_axes(i),'children'),'Visible','off');
+            end
+            plotimages(obj);
+        end
+        
+        function [colorIM, rel_x, rel_y] = create_thumbnail(obj, ClusteringData,clustIndex,callID)
+            im = zeros(obj.thumbnail_size);
             im(:,:) = 0.1;
-            colorIM(:,:,1) = im;
-            colorIM(:,:,2) = im;
-            colorIM(:,:,3) = im;            
-            ha(i) = axes(d,'Units','Normalized','Position',[pos(i,2),pos(i,1),.18,.12]);
-            handle_image(i) = image(colorIM,'parent',ha(i));
-            set(ha(i),'Visible','off')
-            set(get(ha(i),'children'),'Visible','off');
-        end
-    end    
-
-end
-
-
-function config_axis(axis_handles,i, rel_x, rel_y)
-global ha ClusteringData
-        set(axis_handles,'xcolor','w');
-        set(axis_handles,'ycolor','w');
-
-        x_lim = xlim(axis_handles);
-        x_span = x_lim(2) - x_lim(1);
-        xtick_positions = linspace(x_span*rel_x(1)+x_lim(1), x_span*rel_x(2)+x_lim(1),4);            
-        x_ticks = linspace(0,ClusteringData.Duration(i),4);
-        x_ticks = arrayfun(@(x) sprintf('%.3f',x),x_ticks(2:end),'UniformOutput',false);
-        
-        y_lim = ylim(axis_handles);
-        y_span = y_lim(2) - y_lim(1);
-        ytick_positions = linspace(y_span*rel_y(1)+y_lim(1), y_span*rel_y(2)+y_lim(1),3);
-
-
-        
-        y_ticks = linspace(ClusteringData.MinFreq(i),ClusteringData.MinFreq(i)+ClusteringData.Bandwidth(i),3);
-        y_ticks = arrayfun(@(x) sprintf('%.1f',x),y_ticks(1:end),'UniformOutput',false);
-        y_ticks = flip(y_ticks);
-
-        yticks(axis_handles,ytick_positions);
-        xticks(axis_handles,xtick_positions(2:end));
-        xticklabels(axis_handles,x_ticks);
-        yticklabels(axis_handles,y_ticks);
-end
-
-function plotimages
-    global k clustAssign clusters rejected ClusteringData minfreq d ha ColorData handle_image page thumbnail_size
-    clustIndex = find(clustAssign==clusters(k));
-
-    for i=1:length(ha)
-        if i <= length(clustIndex) - (page - 1)*length(ha)
-           % set(ha(i),'Visible','off')
-           
-            set(get(ha(i),'children'),'Visible','on');
-  
-            callID = i + (page - 1)*length(ha);
-            [colorIM, rel_x, rel_y] = create_thumbnail(ClusteringData,clustIndex,thumbnail_size,callID,minfreq,ColorData);
-            set(handle_image(i), 'ButtonDownFcn',{@clicked,clustIndex(callID),i,callID});
-            add_cluster_context_menu(handle_image(i),clustIndex(callID));
-            if rejected(clustIndex(callID))
-                colorIM(:,:,1) = colorIM(:,:,1) + .5;
+            
+            rel_x = [0 1];
+            rel_y = [0 1];
+            
+            if size(ClusteringData.Spectrogram{clustIndex(callID)},1) < size(ClusteringData.Spectrogram{clustIndex(callID)},2)
+                aspect_ratio = size(ClusteringData.Spectrogram{clustIndex(callID)},1) / size(ClusteringData.Spectrogram{clustIndex(callID)},2);
+                scaled_heigth = round(obj.thumbnail_size(1) * aspect_ratio);
+                offset = round((obj.thumbnail_size(1) - scaled_heigth )/2);
+                resized = imresize(ClusteringData.Spectrogram{clustIndex(callID)},[scaled_heigth obj.thumbnail_size(2)]);
+                start_index = offset;
+                end_index = offset+scaled_heigth-1;
+                if offset
+                    im(start_index:end_index,:) = resized;
+                    rel_y = [start_index / size(im,1) end_index / size(im,1)];
+                else
+                    im = double(resized);
+                end
+            else
+                aspect_ratio = size(ClusteringData.Spectrogram{clustIndex(callID)},1) / size(ClusteringData.Spectrogram{clustIndex(callID)},2);
+                scaled_width = round(obj.thumbnail_size(2) / aspect_ratio);
+                offset = round((obj.thumbnail_size(2) - scaled_width )/2);
+                resized = imresize(ClusteringData.Spectrogram{clustIndex(callID)},[obj.thumbnail_size(1) scaled_width]);
+                start_index = max(offset,1);
+                end_index = offset+scaled_width-1;
+                if offset
+                    im(:,start_index:end_index) = resized;
+                    rel_x = [start_index / size(im,2) end_index / size(im,2)];
+                else
+                    im = double(resized);
+                end
             end
+%             im = ClusteringData.Spectrogram{clustIndex(callID)}
+%             im = padarray(double(resized), round((obj.thumbnail_size - size(resized)) / 2));
+            
+            % Apply color to the greyscale images
+            freqdata = round(linspace(ClusteringData.MinFreq(clustIndex(callID)) + ClusteringData.Bandwidth(clustIndex(callID)),ClusteringData.MinFreq(clustIndex(callID)),obj.thumbnail_size(1)));
+            colorMask = interp1(linspace(obj.minfreq, obj.maxfreq, size(obj.ColorData,1)), obj.ColorData, freqdata, 'nearest', 'extrap');
+            colorIM = im .* colorMask ./ 255;
+            
+        end
+        
+        function obj = config_axis(obj, axis_handles,i, rel_x, rel_y)
+            set(axis_handles,'xcolor','w');
+            set(axis_handles,'ycolor','w');
+            
+            x_lim = xlim(axis_handles);
+            x_span = x_lim(2) - x_lim(1);
+            xtick_positions = linspace(x_span*rel_x(1)+x_lim(1), x_span*rel_x(2)+x_lim(1),4);
+            x_ticks = linspace(0,obj.ClusteringData.Duration(i),4);
+            x_ticks = arrayfun(@(x) sprintf('%.3f',x),x_ticks(2:end),'UniformOutput',false);
+            
+            y_lim = ylim(axis_handles);
+            y_span = y_lim(2) - y_lim(1);
+            ytick_positions = linspace(y_span*rel_y(1)+y_lim(1), y_span*rel_y(2)+y_lim(1),3);            
+            
+            y_ticks = linspace(obj.ClusteringData.MinFreq(i),obj.ClusteringData.MinFreq(i)+obj.ClusteringData.Bandwidth(i),3);
+            y_ticks = arrayfun(@(x) sprintf('%.1f',x),y_ticks(1:end),'UniformOutput',false);
+            y_ticks = flip(y_ticks);
+            
+            yticks(axis_handles,ytick_positions);
+            xticks(axis_handles,xtick_positions(2:end));
+            xticklabels(axis_handles,x_ticks);
+            yticklabels(axis_handles,y_ticks);
+        end
+        
+        function obj = plotimages(obj)
+            % Number of calls in each cluster
+            for cl = 1:length(obj.clusterName)
+                obj.count(cl) = sum(obj.clustAssign==obj.clusters(cl));
+            end
+            
+            clustIndex = find(obj.clustAssign==obj.clusters(obj.currentCluster));
+            
+            for i=1:length(obj.image_axes)
+                if i <= length(clustIndex) - (obj.page - 1)*length(obj.image_axes)
+                    % set(image_axes(i),'Visible','off')
+                    
+                    set(get(obj.image_axes(i),'children'),'Visible','on');
+                    
+                    callID = i + (obj.page - 1)*length(obj.image_axes);
+                    [colorIM, rel_x, rel_y] = obj.create_thumbnail(obj.ClusteringData,clustIndex,callID);
+                    set(obj.handle_image(i), 'ButtonDownFcn',@(src,event) clicked(obj,src,event,clustIndex(callID),i,callID));
+                    obj.add_cluster_context_menu(obj.handle_image(i),clustIndex(callID));
+                    
+                    
+                    % Display the file ID and call number on mouse hover
+                    [~,call_file,~] = fileparts(obj.ClusteringData.Filename(clustIndex(callID)));
+                    call_id = sprintf('Call: %u', obj.ClusteringData.callID(clustIndex(callID)));                   
+                    pointerBehavior.enterFcn = @(~,~) set(obj.call_id_text, 'string', {call_id, call_file});
+                    pointerBehavior.traverseFcn = [];
+                    pointerBehavior.exitFcn = @(~,~) set(obj.call_id_text, 'string', '');
+                    iptSetPointerBehavior(obj.handle_image(i), pointerBehavior);
 
-            set(handle_image(i),'CData',colorIM);
 
-            config_axis(ha(i),clustIndex(callID), rel_x, rel_y);
 
-            set(ha(i),'Visible','on')
-
-        else
-            set(ha(i),'Visible','off')
-            set(get(ha(i),'children'),'Visible','off');
+                    % Make the image red if the call is rejected
+                    if obj.rejected(clustIndex(callID))
+                        colorIM(:,:,1) = colorIM(:,:,1) + .5;
+                    end
+                    
+                    set(obj.handle_image(i),'CData',colorIM, 'XData', []);
+                    
+                    obj.config_axis(obj.image_axes(i),clustIndex(callID), rel_x, rel_y);
+                    
+                    set(obj.image_axes(i),'Visible','on')
+                    
+                else
+                    set(obj.image_axes(i),'Visible','off')
+                    set(get(obj.image_axes(i),'children'),'Visible','off');
+                end
+                
+            end
+            
+            % Update text
+            obj.pagenumber.String = sprintf('Page %u of %u', obj.page, ceil(obj.count(obj.currentCluster) / length(obj.image_axes)));
+            obj.txtbox.String = string(obj.clusterName(obj.currentCluster));
+            obj.totalCount.String = sprintf('total count: %u', obj.count(obj.currentCluster));
+            obj.fig.Name = sprintf('Cluster %u of %u', obj.currentCluster, length(obj.count));
+            
+        end
+        
+        function obj = add_cluster_context_menu(obj, hObject, i)
+            unique_clusters = unique(obj.clusterName);
+            
+            c = uicontextmenu(obj.fig);
+            for ci=1:length(unique_clusters)
+                uimenu(c,'text',string(obj.clusterName(ci)),'Callback',@(src,event) assign_cluster(obj, src, event,i,unique_clusters(ci)));
+            end
+            
+            set(hObject, 'UIContextMenu',c);
+        end
+        
+        function obj = assign_cluster(obj, hObject,eventdata,i, clusterLabel)
+            obj.clustAssign(i) = clusterLabel;
+            obj.plotimages();
+        end
+        
+        function obj = clicked(obj, hObject,eventdata,i,plotI,callID)
+            if( eventdata.Button ~= 1 ) % Return if not left clicked
+                return
+            end
+            
+            clustIndex = find(obj.clustAssign == obj.clusters(obj.currentCluster));
+            
+            obj.rejected(i) = ~obj.rejected(i);
+            
+            [colorIM, rel_x, rel_y] = obj.create_thumbnail(obj.ClusteringData,clustIndex,callID);
+           
+            if obj.rejected(i)
+                colorIM(:,:,1) = colorIM(:,:,1) + .5;
+            end            
+            set(obj.handle_image(plotI),'CData',colorIM);
+        end
+        
+        function obj = next_Callback(obj, hObject, eventdata)
+            obj.clusterName(obj.currentCluster) = get(obj.txtbox,'String');
+            if obj.currentCluster < length(obj.clusterName)
+                obj.currentCluster = obj.currentCluster + 1;
+                obj.page = 1;
+                obj.plotimages();
+            end
+        end
+        
+        function obj = back_Callback(obj, hObject, eventdata)
+            obj.clusterName(obj.currentCluster) = get(obj.txtbox,'String');
+            if obj.currentCluster > 1
+                obj.currentCluster = obj.currentCluster-1;
+                obj.page = 1;
+                obj.plotimages();
+            end
+        end
+        
+        function obj = nextpage_Callback(obj, hObject, eventdata)
+            if obj.page < ceil(obj.count(obj.currentCluster) / length(obj.image_axes))
+                obj.page = obj.page + 1;
+                obj.plotimages();
+            end
+        end
+        
+        function obj = backpage_Callback(obj, hObject, eventdata)
+            if obj.page > 1
+                obj.page = obj.page - 1;
+                obj.plotimages();
+            end
+        end
+        
+        function obj = txtbox_Callback(obj, hObject, eventdata)
+            obj.clusterName(obj.currentCluster) = get(hObject,'String');
         end
 
+        function obj = finished_Callback(obj, hObject, eventdata)
+            % If window is closed, finished = 2
+            % If clicked apply, finished = 1
+            % If clicked redo, finished = 0
+            switch eventdata.EventName
+                case 'Close'
+                    obj.finished = 2;
+                otherwise
+                    switch hObject.String
+                        case 'Save'
+                            obj.finished = 1;
+                        case 'Redo'
+                            obj.finished = 0;
+                    end
+            end
+            set(obj.fig,  'closerequestfcn', '');
+            delete(obj.fig);
+            obj.fig = [];
+        end
+        
     end
-
-end
-
-function add_cluster_context_menu(hObject, i)
-global clustAssign clusterName
-        unique_clusters = unique(clusterName);
-
-        c = uicontextmenu;
-        for ci=1:length(unique_clusters)
-            uimenu(c,'Label',string(clusterName(ci)),'Callback',{@assign_cluster,i,unique_clusters(ci)});    
-        end
-
-        set(hObject, 'UIContextMenu',c);
-end
-
-function assign_cluster(hObject,eventdata,i, clusterLabel)
-    global clustAssign d
-    clustAssign(i) = clusterLabel;
-    
-    set(d, 'pointer', 'watch');     
-    gui_components = allchild(d);
-
-    for i=1:length(gui_components)
-        if ~strcmp(gui_components(i).Type,'uicontrol')
-            delete( gui_components(i));
-        end
-    end
-
-    render_GUI(d);
-    drawnow;
-
-    set(d, 'pointer', 'arrow');
-end
-
-function clicked(hObject,eventdata,i,plotI,callID)
-global k clustAssign clusters rejected ClusteringData minfreq d ha ColorData handle_image thumbnail_size k page
-
-if( eventdata.Button ~= 1 )
-    return
-end
-
-clustIndex = find(clustAssign==clusters(k));
-
-rejected(i) = ~rejected(i);
-
-[colorIM, rel_x, rel_y] = create_thumbnail(ClusteringData,clustIndex,thumbnail_size,callID,minfreq,ColorData);
-
-if rejected(i)
-    colorIM(:,:,1) = colorIM(:,:,1) + .5;
-else 
-    colorIM(:,:,1) = colorIM(:,:,1) - .5;
-end
-
-set(handle_image(plotI),'CData',colorIM);
-set(handle_image(plotI), 'ButtonDownFcn',{@clicked,i,plotI,callID});
-
-end
-
-function next_Callback(hObject, eventdata, handles)
-global k d txtbox totalCount count clusterName pagenumber page ha
-clusterName(k) = get(txtbox,'String');
-if k < length(clusterName)
-    k = k+1;
-    page = 1;
-    pagenumber.String = ['Page ' char(string(page)) ' of ' char(string(ceil(count(k) / length(ha))))];
-    plotimages
-end
-
-set(txtbox,'string',string(clusterName(k)))
-set(totalCount,'string',['total count:' char(string(count(k)))])
-set(d,'name',['Cluster ' num2str(k) ' of ' num2str(length(count))])
-end
-
-function back_Callback(hObject, eventdata, handles)
-global k d txtbox totalCount count clusterName pagenumber page ha
-clusterName(k) = get(txtbox,'String');
-if k > 1
-    k = k-1;
-    page = 1;
-    pagenumber.String = ['Page ' char(string(page)) ' of ' char(string(ceil(count(k) / length(ha))))];
-    plotimages
-end
-
-set(txtbox,'string',string(clusterName(k)))
-set(totalCount,'string',['total count:' char(string(count(k)))])
-set(d,'name',['Cluster ' num2str(k) ' of ' num2str(length(count))])
-end
-
-function nextpage_Callback(hObject, eventdata, handles)
-global page pagenumber count k ha
-if page < ceil(count(k) / length(ha))
-    page = page + 1;
-    pagenumber.String = ['Page ' char(string(page)) ' of ' char(string(ceil(count(k) / length(ha))))];
-    plotimages
-end
-end
-
-function backpage_Callback(hObject, eventdata, handles)
-global page pagenumber count k ha
-if page > 1
-    page = page - 1;
-    pagenumber.String = ['Page ' char(string(page)) ' of ' char(string(ceil(count(k) / length(ha))))];
-    plotimages
-end
-end
-
-function windowclosed(hObject, eventdata, handles)
-global finished
-finished = 2;
-delete(hObject)
-end
-
-function [colorIM, rel_x, rel_y] = create_thumbnail(ClusteringData,clustIndex,thumbnail_size,callID,minfreq,ColorData)
-    im = zeros(thumbnail_size(1),thumbnail_size(2));
-    im(:,:) = 0.1;
-    
-    rel_x = [0 1];
-    rel_y = [0 1];   
-    
-    if size(ClusteringData.Spectrogram{clustIndex(callID)},1) < size(ClusteringData.Spectrogram{clustIndex(callID)},2)
-        aspect_ratio = size(ClusteringData.Spectrogram{clustIndex(callID)},1) / size(ClusteringData.Spectrogram{clustIndex(callID)},2);
-        scaled_heigth = round(thumbnail_size(1) * aspect_ratio);
-        offset = round((thumbnail_size(1) - scaled_heigth )/2);
-        resized = imresize(ClusteringData.Spectrogram{clustIndex(callID)},[scaled_heigth thumbnail_size(2)]);
-        start_index = offset;
-        end_index = offset+scaled_heigth-1;
-        if offset
-            im(start_index:end_index,:) = resized;  
-            rel_y = [start_index / size(im,1) end_index / size(im,1)]; 
-        else
-            im = resized;
-        end
-    else 
-        aspect_ratio = size(ClusteringData.Spectrogram{clustIndex(callID)},1) / size(ClusteringData.Spectrogram{clustIndex(callID)},2);
-        scaled_width = round(thumbnail_size(2) / aspect_ratio);
-        offset = round((thumbnail_size(2) - scaled_width )/2);
-        resized = imresize(ClusteringData.Spectrogram{clustIndex(callID)},[thumbnail_size(1) scaled_width]);
-        start_index = max(offset,1);
-        end_index = offset+scaled_width-1;
-        if offset 
-            im(:,start_index:end_index) = resized;  
-            rel_x = [start_index / size(im,2) end_index / size(im,2)]; 
-        else
-            im = resized;
-        end
-    end   
-    
-
-    
-    freqdata = round(linspace(ClusteringData.MinFreq(clustIndex(callID)) + ClusteringData.Bandwidth(clustIndex(callID)),ClusteringData.MinFreq(clustIndex(callID)),thumbnail_size(1)));
-    colorIM(:,:,1) =  single(im).*.0039.*ColorData(freqdata - minfreq,1);
-    colorIM(:,:,2) =  single(im).*.0039.*ColorData(freqdata - minfreq,2);
-    colorIM(:,:,3) =  single(im).*.0039.*ColorData(freqdata - minfreq,3);    
-
 end

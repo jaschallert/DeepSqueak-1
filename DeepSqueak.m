@@ -227,8 +227,9 @@ audio = handles.data.AudioSamples(...
     handles.data.calls.Box(handles.data.currentcall, 1),...
     handles.data.calls.Box(handles.data.currentcall, 1) + handles.data.calls.Box(handles.data.currentcall, 3));
 playbackRate = handles.data.audiodata.SampleRate * handles.data.settings.playback_rate; % set playback rate
+audio = audio - mean(audio);
 % Bandpass Filter
-% audio = bandpass(audio,[handles.data.calls.Box(handles.data.currentcall, 2), handles.data.calls.Box(handles.data.currentcall, 2) + handles.data.calls.Box(handles.data.currentcall, 4)] * 1000,handles.data.audiodata.Samplerate));
+% audio = bandpass(audio,[handles.data.calls.Box(handles.data.currentcall, 2), handles.data.calls.Box(handles.data.currentcall, 2) + handles.data.calls.Box(handles.data.currentcall, 4)] * 1000,handles.data.audiodata.SampleRate);
 % paddedsound = [zeros(3125,1); audio; zeros(3125,1)];
 soundsc(audio,playbackRate);
 

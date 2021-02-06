@@ -2,49 +2,50 @@ function [Calls,audiodata,ClusteringData] = loadCallfile(filename,handles)
 
 data = load(filename);
 
+Calls = table();
+audiodata = struct();
+ClusteringData = table();
+
 %% Unpack the data
 if isfield(data, 'Calls')
     Calls = data.Calls;
-else
+elseif nargout < 3 % If ClusteringData is requested, we don't need Calls
     error('This doesn''t appear to be a detection file!')
 end
 
 if isfield(data, 'audiodata')
     audiodata = data.audiodata;
-else
-    audiodata = struct();
 end
 
 if isfield(data, 'ClusteringData')
     ClusteringData = data.ClusteringData;
-else
-    ClusteringData = [];
 end
 
 
-%% Make sure there's nothing wrong with the file
-if isempty(Calls)
-    disp(['No calls in file: ' filename]);
-else
-    % Backwards compatibility with struct format for detection files
-    if isstruct(Calls)
-        Calls = struct2table(Calls, 'AsArray', true);
+if nargout < 3
+    
+    %% Make sure there's nothing wrong with the call file
+    if isempty(Calls)
+        disp(['No calls in file: ' filename]);
+    else
+        % Backwards compatibility with struct format for detection files
+        if isstruct(Calls)
+            Calls = struct2table(Calls, 'AsArray', true);
+        end
+        % Remove calls with boxes of size zero
+        Calls(Calls.Box(:,4) == 0, :) = [];
+        Calls(Calls.Box(:,3) == 0, :) = [];
+        
+        % Remove any old variables that we don't use anymore
+        Calls = removevars(Calls, intersect(Calls.Properties.VariableNames, {'RelBox', 'Rate', 'Audio'}));
+        
+        % Sort calls by time
+        Calls = sortrows(Calls, 'Box');
     end
-    % Remove calls with boxes of size zero
-    Calls(Calls.Box(:,4) == 0, :) = [];
-    Calls(Calls.Box(:,3) == 0, :) = [];
     
-    % Remove any old variables that we don't use anymore
-    Calls = removevars(Calls, intersect(Calls.Properties.VariableNames, {'RelBox', 'Rate', 'Audio'}));
     
-    % Sort calls by time
-    Calls = sortrows(Calls, 'Box');
-end
-
-
-%% If audiodata isn't present, make it so
-if nargout > 1
-    if ~isempty(handles) && ~isfield(data, 'audiodata') || ~isfield(data.audiodata, 'Filename') || ~isfile(data.audiodata.Filename)
+    %% If audiodata isn't present, make it so
+    if ~isempty(handles) && isempty(audiodata) || ~isfield(audiodata, 'Filename') || ~isfile(audiodata.Filename)
         % Does anything in the audio folder match the filename? If so, assume
         % this is the matching audio file, else select the right one.
         [~, detection_name] = fileparts(filename);

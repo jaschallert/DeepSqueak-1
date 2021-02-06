@@ -3,7 +3,7 @@ function UpdateCluster(ClusteringData, clustAssign, clusterName, rejected)
 
 h = waitbar(0,'Initializing');
 
-[files, ~, file_idx] = unique(ClusteringData(:,6),'stable');
+[files, ~, file_idx] = unique(ClusteringData.Filename,'stable');
 
 % Merge "Noise" and "noise"
 clusterName = mergecats(clusterName, {'Noise', 'noise'});

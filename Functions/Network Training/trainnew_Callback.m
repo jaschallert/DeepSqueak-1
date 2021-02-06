@@ -30,11 +30,10 @@ end
 if ~strcmp(warningmsg,'Train anyway'); return; end
 
 %% Train the network
-choice = questdlg(['Train from existing network?'], ...
-    'Yes', 'No');
+choice = questdlg('Train from existing network?', 'Yes', 'No');
 switch choice
     case 'Yes'
-        [NetName NetPath] = uigetfile(handles.data.settings.networkfolder,'Select Existing Network');
+        [NetName, NetPath] = uigetfile(handles.data.settings.networkfolder,'Select Existing Network');
         load([NetPath NetName],'detector');
         [detector, layers, options] = TrainSqueakDetector(TrainingTables,detector);
     case 'No'
@@ -47,8 +46,8 @@ wind = max(AllSettings(:,1));
 noverlap = max(AllSettings(:,2));
 nfft = max(AllSettings(:,3));
 
-
-save(fullfile(PathName,FileName),'detector','layers','options','wind','noverlap','nfft');
+version = handles.DSVersion;
+save(fullfile(PathName,FileName),'detector','layers','options','wind','noverlap','nfft','version');
 
 %% Update the menu
 update_folders(hObject, eventdata, handles);

@@ -1,4 +1,4 @@
-function [I,windowsize,noverlap,nfft,rate,box,s,fr,ti,audio] = CreateFocusSpectrogram(call,handles, make_spectrogram,options, audioReader)
+function [I,windowsize,noverlap,nfft,rate,box,s,fr,ti,audio] = CreateFocusSpectrogram(call,handles, make_spectrogram, options, audioReader)
 %% Extract call features for CalculateStats and display
 
 
@@ -77,10 +77,10 @@ end
 x1 = 1;
 x2 = length(ti);
 
-min_freq = find(fr./1000 >= call.Box(2) - options.frequency_padding,1);
+min_freq = find(fr./1000 >= box(2) - options.frequency_padding,1);
 min_freq = max(min_freq, 1);
 
-max_freq = find(fr./1000 >= call.Box(4) + call.Box(2) + options.frequency_padding,1);
+max_freq = find(fr./1000 <= box(4) + box(2) + options.frequency_padding, 1, 'last');
 max_freq = min(round(max_freq), length(fr));
 
 I=abs(s(min_freq:max_freq,x1:x2));
