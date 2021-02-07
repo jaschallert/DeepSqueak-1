@@ -36,7 +36,7 @@ classdef clusteringGUI < handle
             obj.minfreq = prctile(ClusteringData.MinFreq, 5);
             obj.maxfreq = prctile(ClusteringData.MinFreq + ClusteringData.Bandwidth, 95);
             obj.ColorData = jet(256); % Color by mean frequency
-            % obj.ColorData = HSLuv_to_RGB(256, 'H',  [270 -25], 'S', 100, 'L', 75); % Make a color map for each category
+            % obj.ColorData = HSLuv_to_RGB(256, 'H',  [270 0], 'S', 100, 'L', 75, 'type', 'HSL'); % Make a color map for each category
             obj.ColorData = reshape(obj.ColorData,size(obj.ColorData,1),1,size(obj.ColorData,2));
             
             if iscategorical(obj.clustAssign)
@@ -177,11 +177,23 @@ classdef clusteringGUI < handle
             ylabel(caxis, 'Frequency (kHz)')
             
             %% Make the axes
+            aspectRatio = median(cellfun(@(im) size(im,1) ./ size(im,2), obj.ClusteringData.Spectrogram))
+            
+            % Choose a number of rows and columns to fill the space with
+            % the average call aspect ratio
+            nFrames = 20;
+            figureAspectRatio = 1.4;
+            x_grids = sqrt(aspectRatio * figureAspectRatio * nFrames);
+            x_grids = ceil(x_grids);
+            y_grids = ceil(nFrames / x_grids);
+        
+            obj.thumbnail_size = round(sqrt(20000 .* [aspectRatio, 1/aspectRatio]));
+
             axes_spacing = .85; % Relative width of each image
             y_range = [.05, .75]; % [Start, End] of the grid
             x_range = [.02, .85];
-            x_grids = 5; % Number of x grids
-            y_grids = 4; % Number of y grids
+            % x_grids = 5; % Number of x grids
+            % y_grids = 4; % Number of y grids
 
             ypos = linspace(y_range(1), y_range(2) - axes_spacing * range(y_range) / y_grids, y_grids );
             xpos = linspace(x_range(1), x_range(2) - axes_spacing * range(x_range) / x_grids, x_grids );
@@ -205,47 +217,29 @@ classdef clusteringGUI < handle
         end
         
         function [colorIM, rel_x, rel_y] = create_thumbnail(obj, ClusteringData,clustIndex,callID)
-            im = zeros(obj.thumbnail_size);
-            im(:,:) = 0.1;
+            % Resize the image while maintaining the aspect ratio by
+            % padding with zeros
+            im_size = size(ClusteringData.Spectrogram{clustIndex(callID)}) ;
+            new_size = floor(im_size .* min(obj.thumbnail_size ./ im_size));
+            im = double(imresize(ClusteringData.Spectrogram{clustIndex(callID)}, new_size));
+            pad = (obj.thumbnail_size - size(im)) / 2;
+            im = padarray(im, floor(pad), 'pre');
+            im = padarray(im, ceil(pad), 'post');
             
-            rel_x = [0 1];
-            rel_y = [0 1];
-            
-            if size(ClusteringData.Spectrogram{clustIndex(callID)},1) < size(ClusteringData.Spectrogram{clustIndex(callID)},2)
-                aspect_ratio = size(ClusteringData.Spectrogram{clustIndex(callID)},1) / size(ClusteringData.Spectrogram{clustIndex(callID)},2);
-                scaled_heigth = round(obj.thumbnail_size(1) * aspect_ratio);
-                offset = round((obj.thumbnail_size(1) - scaled_heigth )/2);
-                resized = imresize(ClusteringData.Spectrogram{clustIndex(callID)},[scaled_heigth obj.thumbnail_size(2)]);
-                start_index = offset;
-                end_index = offset+scaled_heigth-1;
-                if offset
-                    im(start_index:end_index,:) = resized;
-                    rel_y = [start_index / size(im,1) end_index / size(im,1)];
-                else
-                    im = double(resized);
-                end
-            else
-                aspect_ratio = size(ClusteringData.Spectrogram{clustIndex(callID)},1) / size(ClusteringData.Spectrogram{clustIndex(callID)},2);
-                scaled_width = round(obj.thumbnail_size(2) / aspect_ratio);
-                offset = round((obj.thumbnail_size(2) - scaled_width )/2);
-                resized = imresize(ClusteringData.Spectrogram{clustIndex(callID)},[obj.thumbnail_size(1) scaled_width]);
-                start_index = max(offset,1);
-                end_index = offset+scaled_width-1;
-                if offset
-                    im(:,start_index:end_index) = resized;
-                    rel_x = [start_index / size(im,2) end_index / size(im,2)];
-                else
-                    im = double(resized);
-                end
-            end
-%             im = ClusteringData.Spectrogram{clustIndex(callID)}
-%             im = padarray(double(resized), round((obj.thumbnail_size - size(resized)) / 2));
+            % Relative offsets for setting the tick values
+            rel_size = pad ./ obj.thumbnail_size;
+            rel_x = [rel_size(2), 1-rel_size(2)];
+            rel_y = [rel_size(1), 1-rel_size(1)];
             
             % Apply color to the greyscale images
-            freqdata = round(linspace(ClusteringData.MinFreq(clustIndex(callID)) + ClusteringData.Bandwidth(clustIndex(callID)),ClusteringData.MinFreq(clustIndex(callID)),obj.thumbnail_size(1)));
+            freqRange = [ClusteringData.MinFreq(clustIndex(callID)),...
+                ClusteringData.MinFreq(clustIndex(callID)) + ClusteringData.Bandwidth(clustIndex(callID))];
+            % Account for any padding on the y axis
+            freqRange = freqRange + range(freqRange) .* rel_y(1) .* [-1, 1];
+
+            freqdata = linspace(freqRange(2) ,freqRange(1), obj.thumbnail_size(1));
             colorMask = interp1(linspace(obj.minfreq, obj.maxfreq, size(obj.ColorData,1)), obj.ColorData, freqdata, 'nearest', 'extrap');
             colorIM = im .* colorMask ./ 255;
-            
         end
         
         function obj = config_axis(obj, axis_handles,i, rel_x, rel_y)
@@ -353,7 +347,7 @@ classdef clusteringGUI < handle
             
             obj.rejected(i) = ~obj.rejected(i);
             
-            [colorIM, rel_x, rel_y] = obj.create_thumbnail(obj.ClusteringData,clustIndex,callID);
+            [colorIM, ~, ~] = obj.create_thumbnail(obj.ClusteringData,clustIndex,callID);
            
             if obj.rejected(i)
                 colorIM(:,:,1) = colorIM(:,:,1) + .5;

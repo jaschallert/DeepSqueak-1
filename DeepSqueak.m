@@ -133,7 +133,7 @@ try % Read the current changelog and find the version (## number)
 catch
     handles.DSVersion = '? -- can''t read CHANGELOG.md. Make sure you have the latest version!';
 end
-fprintf(1,'%s %s\n', 'DeepSqueak version', handles.DSVersion);
+fprintf(1,'%s %s\n\n', 'DeepSqueak version', handles.DSVersion);
 try % Check if a new version is avaliable by comparing changelog to whats online
     WebChangelog = webread('https://raw.githubusercontent.com/DrCoffey/DeepSqueak/master/CHANGELOG.md');
     [changes, tokens] = regexp(WebChangelog, '## ([.\d])+', 'start', 'tokens');
@@ -216,6 +216,29 @@ set(handles.detectionAxes,'XTick',[]);
 set(handles.detectionAxes,'YTick',[]);
 set(handles.spectogramWindow,'Parent',handles.hFig);
 
+% Set the list of colormaps
+handles.popupmenuColorMap.String = {
+    'inferno'
+    'magma'
+    'plasma'
+    'viridis'
+    'cubehelix'
+    'gray'
+    'jet'
+    'turbo'
+    'hot'
+    'parula'
+    'hsv'
+    'cool'
+    'spring'
+    'summer'
+    'autumn'
+    'winter'
+    'bone'
+    'copper'
+    'pink'};
+
+
 function varargout = DeepSqueak_OutputFcn(hObject, eventdata, handles)
 shg;
 varargout{1} = handles.output;
@@ -227,11 +250,15 @@ audio = handles.data.AudioSamples(...
     handles.data.calls.Box(handles.data.currentcall, 1),...
     handles.data.calls.Box(handles.data.currentcall, 1) + handles.data.calls.Box(handles.data.currentcall, 3));
 playbackRate = handles.data.audiodata.SampleRate * handles.data.settings.playback_rate; % set playback rate
+audio = resample(audio, 192000, playbackRate);
 audio = audio - mean(audio);
+% Use a window funtion to smooth the beginning and end to remove clicks
+w = hamming(2000);
+audio(1:1000) = audio(1:1000) .* w(1:1000);
+audio(end-999:end) = audio(end-999:end) .* w(1001:2000);
 % Bandpass Filter
 % audio = bandpass(audio,[handles.data.calls.Box(handles.data.currentcall, 2), handles.data.calls.Box(handles.data.currentcall, 2) + handles.data.calls.Box(handles.data.currentcall, 4)] * 1000,handles.data.audiodata.SampleRate);
-% paddedsound = [zeros(3125,1); audio; zeros(3125,1)];
-soundsc(audio,playbackRate);
+soundsc(audio,192000);
 
 
 % --- Executes on button press in NextCall.
@@ -883,11 +910,6 @@ function detectionAxes_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to detectionAxes (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
-
-function popupmenuColorMap_ButtonDownFcn(hObject, eventdata, handles)
-% hObject    handle to popupmenuColorMap (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
 
 % --------------------------------------------------------------------

@@ -8,7 +8,6 @@ while ~finished
     % Get the data
     %     [ClusteringData] = CreateClusteringData(handles, 'forClustering', true, 'save_data', true);
     %     if isempty(ClusteringData); return; end
-    
     %     clustAssign = zeros(size(ClusteringData,1),1);
     
     
@@ -23,7 +22,7 @@ while ~finished
                     % Get parameter weights
                     switch choice
                         case 'K-means (recommended)'
-                            ClusteringData = CreateClusteringData(handles, 'forClustering', true, 'save_data', true);
+                            [ClusteringData, ~, ~, ~, spectrogramOptions] = CreateClusteringData(handles, 'forClustering', true, 'save_data', true);
                             if isempty(ClusteringData); return; end
                             clusterParameters= inputdlg({'Shape weight','Frequency weight','Duration weight'},'Choose cluster parameters:',1,{'1','1','1'});
                             if isempty(clusterParameters); return; end
@@ -45,18 +44,20 @@ while ~finished
                     if isnumeric(FileName); return;end
                     switch choice
                         case 'K-means (recommended)'
-                            load(fullfile(PathName,FileName),'C','freq_weight','slope_weight','duration_weight','clusterName');
-                            ClusteringData = CreateClusteringData(handles, 'forClustering', true, 'save_data', true);
+                            spectrogramOptions = [];
+                            load(fullfile(PathName,FileName),'C','freq_weight','slope_weight','duration_weight','clusterName','spectrogramOptions');
+                            ClusteringData = CreateClusteringData(handles, 'forClustering', true, 'spectrogramOptions', spectrogramOptions, 'save_data', true);
                             if isempty(ClusteringData); return; end
                             data = get_kmeans_data(ClusteringData, slope_weight, freq_weight, duration_weight)
                         case 'Variational Autoencoder'
+                            C = [];
                             load(fullfile(PathName,FileName),'C','encoderNet','decoderNet','options');
                             [ClusteringData] = CreateClusteringData(handles, 'spectrogramOptions', options.spectrogram, 'scale_duration', options.maxDuration, 'freqRange', options.freqRange, 'save_data', true);
                             if isempty(ClusteringData); return; end
                             data = extract_VAE_embeddings(encoderNet, options, ClusteringData);
                             
                             % If the model was created through create_tsne_Callback, C won't exist, so make it.
-                            if ~exist('C', 'var')
+                            if isempty(C)
                                 C = get_kmeans_centroids(data);
                             end
                     end
@@ -163,7 +164,7 @@ if FromExisting(1) == 'N'
         case 'K-means (recommended)'
             [FileName, PathName] = uiputfile(fullfile(handles.data.squeakfolder, 'Clustering Models', 'K-Means Model.mat'), 'Save clustering model');
             if ~isnumeric(FileName)
-                save(fullfile(PathName, FileName), 'C', 'freq_weight', 'slope_weight', 'duration_weight', 'clusterName');
+                save(fullfile(PathName, FileName), 'C', 'freq_weight', 'slope_weight', 'duration_weight', 'clusterName', 'spectrogramOptions');
             end
         case 'ARTwarp'
             [FileName, PathName] = uiputfile(fullfile(handles.data.squeakfolder, 'Clustering Models', 'ARTwarp Model.mat'), 'Save clustering model');
@@ -206,7 +207,6 @@ freq        = cell2mat(cellfun(@(x) imresize(x',[1 8]) ,ClusteringData.xFreq,'Un
 freq        = zscore(freq);
 duration    = repmat(ClusteringData.Duration,[1 8]);
 duration    = zscore(duration);
-
 data = [
     freq     .*  freq_weight,...
     slope    .*  slope_weight,...

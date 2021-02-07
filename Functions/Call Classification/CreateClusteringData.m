@@ -60,7 +60,7 @@ for j = 1:length(fileName)
     end
 end
 
-% Optimize the window size so that the pixels are square
+% Optimize the window size so that the pixels are square on average
 if isempty(spectrogramOptions)
     yRange = mean(Calls.Box(:,4));
     xRange = mean(Calls.Box(:,3));
@@ -145,7 +145,7 @@ ClusteringData = cell2table(ClusteringData, 'VariableNames', {'Spectrogram', 'Mi
 
 close(h)
 
-if p.Results.save_data
+if p.Results.save_data && ~all(cellfun(@(x) isempty(fields(x)), audiodata)) % If audiodata has no fields, then only extracted contours were used, so don't ask to save them again
     [FileName,PathName] = uiputfile('Extracted Contours.mat','Save extracted data for faster loading (optional)');
     if FileName ~= 0
         save(fullfile(PathName,FileName),'ClusteringData','-v7.3');
